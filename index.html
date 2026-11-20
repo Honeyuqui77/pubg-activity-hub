@@ -348,7 +348,7 @@
   <header class="header">
     <h1>PUBG 最新活动与情报</h1>
     <div class="header-deco" aria-hidden="true"></div>
-    <p class="subtitle">仅展示最近 30 天内的内容 · 活动与资讯分栏查看</p>
+    <p class="subtitle">活动含官网可领奖页（如 G-COIN）· 资讯为新闻公告 · 近 30 天 / 未结束</p>
   </header>
 
   <!-- 加载失败或使用兜底数据时的提示 -->
@@ -374,7 +374,7 @@
     <div id="grid" class="grid" hidden></div>
   </main>
 
-  <footer>PUBG 活动聚合导航 · 数据来源公开 JSON · 单文件本地可用</footer>
+  <footer>PUBG 活动聚合导航 · 活动来自官方活动接口同步 · 资讯来自公开新闻 JSON</footer>
 
   <script>
     /**
@@ -388,11 +388,24 @@
      * 说明：国内直连 cdn.jsdelivr.net 经常超时；
      *       fastly / jsdmirror 通常更稳。
      */
-    const DATA_URLS = [
+    /** 资讯（新闻公告）镜像 */
+    const NEWS_URLS = [
       "https://fastly.jsdelivr.net/gh/yutangbb/pubg-news@main/news_zh-cn.json",
       "https://cdn.jsdmirror.com/gh/yutangbb/pubg-news@main/news_zh-cn.json",
       "https://gcore.jsdelivr.net/gh/yutangbb/pubg-news@main/news_zh-cn.json",
       "https://cdn.jsdelivr.net/gh/yutangbb/pubg-news@main/news_zh-cn.json",
+    ];
+
+    /**
+     * 官方「活动」数据：
+     * Krafton API 有 CORS 限制，浏览器无法直连，因此使用本仓库 events.json
+     * （由 GitHub Action 定时从官方活动接口同步）
+     */
+    const EVENT_URLS = [
+      "./events.json",
+      "https://fastly.jsdelivr.net/gh/Honeyuqui77/pubg-activity-hub@main/events.json",
+      "https://cdn.jsdmirror.com/gh/Honeyuqui77/pubg-activity-hub@main/events.json",
+      "https://raw.githubusercontent.com/Honeyuqui77/pubg-activity-hub/main/events.json",
     ];
 
     /** 自动下架窗口：仅保留最近 N 天 */
@@ -442,7 +455,8 @@
       "活动", "联动", "联名", "合作", "通行证", "双倍", "bp",
       "赛事", "比赛", "锦标赛", "商店", "商城", "皮肤", "抽奖",
       "福利", "限时", "折扣", "促销", "兑换", "登场",
-      "collab", "event", " x ", "×", "ｘ",
+      "空投", "签到", "g-coin", "gcoin", "金币", "领奖", "预测",
+      "collab", "event", " x ", "×", "ｘ", "united",
     ];
 
     /** 明确偏资讯的关键词（命中则优先归为资讯） */
@@ -503,8 +517,15 @@
      * - 标题命中活动关键词 → 活动
      * - 其余默认资讯（地图轮换、常规公告等）
      */
-    function classifyKind(title, category) {
+    function classifyKind(title, category, forcedKind) {
+      // events.json / 官方活动接口已标明的直接信任
+      if (forcedKind === "event" || forcedKind === "news") return forcedKind;
+
       const cat = String(category || "").toLowerCase();
+      // 官方活动分类
+      if (cat === "event" || cat === "event_winner" || cat.startsWith("event")) {
+        return "event";
+      }
       if (cat === "patch_notes" || cat === "dev_notes" || cat === "patch" || cat === "dev") {
         return "news";
       }
@@ -576,15 +597,20 @@
       const publishDate = parseDate(publishRaw);
       if (!title || !publishDate) return null;
 
-      const kind = classifyKind(title, category);
+      // 活动页可带明确结束时间（如 UNITED 到 12/18）
+      const expireDate = parseDate(item.expireAt || item.expire_at || item.endTime || item.end_time);
+
+      const kind = classifyKind(title, category, item.kind);
 
       return {
         title: String(title),
         url: String(url),
         publishDate,
+        expireDate,
         image: String(image || ""),
         category: String(category),
         kind, // "event" | "news"
+        source: item.source || "news",
       };
     }
 
@@ -600,17 +626,24 @@
       const cutoff = now - RETENTION_DAYS * MS_PER_DAY;
 
       return items.filter((item) => {
+        // 若有明确结束时间：未结束则保留（即使发布超过 30 天）
+        if (item.expireDate && item.expireDate.getTime() >= now) {
+          return true;
+        }
         const t = item.publishDate.getTime();
         return t >= cutoff && t <= now + MS_PER_DAY; // 允许轻微未来时间误差
       });
     }
 
     /**
-     * 剩余天数 = floor( (发布日 + 30天 - 现在) / 一天 )
-     * 即还有多少天会因「超过 30 天」被自动下架
+     * 剩余天数：
+     * - 有 expireDate → 距活动结束还有几天
+     * - 否则 → 距「发布+30天」自动下架还有几天
      */
-    function calcRemainDays(publishDate) {
-      const expireAt = publishDate.getTime() + RETENTION_DAYS * MS_PER_DAY;
+    function calcRemainDays(item) {
+      const expireAt = item.expireDate
+        ? item.expireDate.getTime()
+        : item.publishDate.getTime() + RETENTION_DAYS * MS_PER_DAY;
       const remainMs = expireAt - Date.now();
       return Math.max(0, Math.ceil(remainMs / MS_PER_DAY));
     }
@@ -662,7 +695,7 @@
     }
 
     function createCard(item) {
-      const remain = calcRemainDays(item.publishDate);
+      const remain = calcRemainDays(item);
 
       const card = document.createElement("article");
       card.className = "card";
@@ -773,16 +806,14 @@
     /* -------------------- 入口：拉取数据 + 兜底 -------------------- */
 
     /**
-     * 依次请求镜像，任一成功即返回 JSON；全部失败则抛出错误
+     * 依次请求镜像列表，任一成功即返回 JSON
      */
-    async function fetchNewsJson() {
+    async function fetchFirstJson(urls) {
       const errors = [];
-      for (const url of DATA_URLS) {
+      for (const url of urls) {
         try {
           const res = await fetch(url, { cache: "no-store" });
-          if (!res.ok) {
-            throw new Error(`HTTP ${res.status}`);
-          }
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const data = await res.json();
           return { data, source: url };
         } catch (err) {
@@ -793,36 +824,68 @@
       throw new Error(errors.join(" | "));
     }
 
+    /** 按 url 去重合并（活动源优先保留） */
+    function mergeByUrl(primary, secondary) {
+      const map = new Map();
+      [...primary, ...secondary].forEach((item) => {
+        const key = item.url || item.title;
+        if (!map.has(key)) map.set(key, item);
+      });
+      return Array.from(map.values());
+    }
+
     async function init() {
       const isFileProtocol = location.protocol === "file:";
       bindTabs();
 
-      try {
-        const { data, source } = await fetchNewsJson();
-        cachedItems = processRawList(data);
-        document.getElementById("tabsWrap").classList.add("show");
-        updateTabCounts(cachedItems);
+      let eventItems = [];
+      let newsItems = [];
+      let eventOk = false;
+      let newsOk = false;
 
-        const eventN = cachedItems.filter((i) => i.kind === "event").length;
-        const newsN = cachedItems.filter((i) => i.kind === "news").length;
-        showStatus(
-          `已加载官方数据（${source.includes("fastly") ? "fastly" : "镜像"}）：活动 ${eventN} 条 · 资讯 ${newsN} 条（近 ${RETENTION_DAYS} 天）。`
-        );
+      // 并行拉取：官方活动 events.json + 新闻资讯
+      const [eventResult, newsResult] = await Promise.allSettled([
+        fetchFirstJson(EVENT_URLS),
+        fetchFirstJson(NEWS_URLS),
+      ]);
 
-        // 默认打开「活动」；若活动为空则自动切到「资讯」，避免空白页
-        applyKind(eventN > 0 ? "event" : "news");
-      } catch (err) {
-        // 网络不通 / 全部镜像失败 / 极少情况下的 CORS → 兜底假数据
-        console.warn("数据加载失败，启用兜底数据：", err);
+      if (eventResult.status === "fulfilled") {
+        eventItems = processRawList(eventResult.value.data);
+        eventOk = true;
+      } else {
+        console.warn("活动数据加载失败：", eventResult.reason);
+      }
+
+      if (newsResult.status === "fulfilled") {
+        newsItems = processRawList(newsResult.value.data);
+        newsOk = true;
+      } else {
+        console.warn("资讯数据加载失败：", newsResult.reason);
+      }
+
+      if (!eventOk && !newsOk) {
         const tip = isFileProtocol
-          ? "无法加载在线数据。若刷新后仍失败，请用本地 HTTP 服务打开（不要双击 file://），或检查网络/代理。"
-          : "无法从在线地址加载数据（CDN 超时或网络不可用）。已切换为模拟数据。";
+          ? "无法加载在线数据。请用本地 HTTP / GitHub Pages 打开，或检查网络。"
+          : "无法从在线地址加载数据。已切换为模拟数据。";
         showStatus(tip + " 页面仍可正常浏览。", true);
         cachedItems = processRawList(FALLBACK_DATA);
-        document.getElementById("tabsWrap").classList.add("show");
-        updateTabCounts(cachedItems);
-        applyKind("event");
+      } else {
+        // 活动源条目强制保持 event 分类；再与资讯合并
+        eventItems = eventItems.map((i) => ({ ...i, kind: "event" }));
+        cachedItems = mergeByUrl(eventItems, newsItems);
+
+        const parts = [];
+        if (eventOk) parts.push(`活动源 ${eventItems.length} 条`);
+        if (newsOk) parts.push(`资讯源 ${newsItems.length} 条`);
+        if (!eventOk) parts.push("活动源暂不可用");
+        if (!newsOk) parts.push("资讯源暂不可用");
+        showStatus(`已加载：${parts.join(" · ")}（展示近 ${RETENTION_DAYS} 天 / 未结束活动）。`);
       }
+
+      document.getElementById("tabsWrap").classList.add("show");
+      updateTabCounts(cachedItems);
+      const eventN = cachedItems.filter((i) => i.kind === "event").length;
+      applyKind(eventN > 0 ? "event" : "news");
     }
 
     init();
