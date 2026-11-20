@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PUBG 最新活动与情报</title>
+  <style>
+    /* ========== 全局变量：战术暗黑风 ========== */
+    :root {
+      --bg: #1a1a1a;
+      --bg-card: #222222;
+      --bg-card-hover: #2a2a2a;
+      --text: #ffffff;
+      --text-muted: #b0b0b0;
+      --accent: #f2a900;
+      --accent-dim: #c48900;
+      --border: #3a3a3a;
+      --glow: rgba(242, 169, 0, 0.35);
+      --danger: #e74c3c;
+      --radius: 8px;
+      --font: "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+      /* 轻微网格纹理，增强战术感 */
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    /* ========== 页头 ========== */
+    .header {
+      text-align: center;
+      padding: 48px 20px 32px;
+    }
+
+    .header h1 {
+      font-size: clamp(1.6rem, 4vw, 2.4rem);
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--text);
+      text-transform: none;
+    }
+
+    /* 标题下方装饰性边框 */
+    .header-deco {
+      width: min(320px, 70%);
+      margin: 16px auto 0;
+      height: 3px;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        var(--accent) 20%,
+        var(--accent) 80%,
+        transparent
+      );
+      position: relative;
+    }
+
+    .header-deco::before,
+    .header-deco::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      width: 8px;
+      height: 8px;
+      background: var(--accent);
+      transform: translateY(-50%) rotate(45deg);
+    }
+
+    .header-deco::before { left: 0; }
+    .header-deco::after { right: 0; }
+
+    .subtitle {
+      margin-top: 14px;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    /* ========== 状态提示条 ========== */
+    .status {
+      max-width: 1100px;
+      margin: 0 auto 20px;
+      padding: 12px 18px;
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent);
+      background: #1f1f1f;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      display: none;
+    }
+
+    .status.show { display: block; }
+    .status.warn {
+      border-left-color: var(--danger);
+      color: #ffc9c3;
+    }
+
+    /* ========== 分类标签：活动 / 资讯 / 全部 ========== */
+    .tabs-wrap {
+      max-width: 1100px;
+      margin: 0 auto 24px;
+      padding: 0 20px;
+      display: none;
+    }
+
+    .tabs-wrap.show { display: block; }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .tab {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: #1f1f1f;
+      color: var(--text-muted);
+      padding: 10px 22px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      transition: border-color 0.2s, color 0.2s, background 0.2s, box-shadow 0.2s;
+    }
+
+    .tab:hover {
+      border-color: var(--accent);
+      color: var(--text);
+    }
+
+    .tab.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #111;
+      box-shadow: 0 0 14px var(--glow);
+    }
+
+    .tab .count {
+      margin-left: 6px;
+      opacity: 0.75;
+      font-weight: 500;
+      font-size: 0.85em;
+    }
+
+    /* ========== 卡片网格：PC 3 列 / 手机 1 列 ========== */
+    .grid {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 20px 60px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 600px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ========== 活动卡片 ========== */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-6px);
+      border-color: var(--accent);
+      box-shadow:
+        0 12px 28px rgba(0, 0, 0, 0.45),
+        0 0 18px var(--glow);
+    }
+
+    .card-cover {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #111;
+      overflow: hidden;
+    }
+
+    /* 卡片角标：活动 / 资讯 */
+    .card-badge {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 1;
+      padding: 4px 10px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      border-radius: 2px;
+    }
+
+    .card-badge.event {
+      background: var(--accent);
+      color: #111;
+    }
+
+    .card-badge.news {
+      background: rgba(0, 0, 0, 0.7);
+      color: #ddd;
+      border: 1px solid #555;
+    }
+
+    .card-cover img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    /* 无图 / 加载失败时的占位 */
+    .card-cover .placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 8px;
+      background: linear-gradient(145deg, #2a2a2a, #111);
+      color: var(--accent);
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      font-size: 1.1rem;
+    }
+
+    .card-cover .placeholder span {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      letter-spacing: 0.2em;
+      font-weight: 500;
+    }
+
+    .card-body {
+      padding: 16px 16px 18px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      gap: 12px;
+    }
+
+    /* 标题最多两行，超出省略 */
+    .card-title {
+      font-size: 1rem;
+      font-weight: 600;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      min-height: 2.8em;
+    }
+
+    .card-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      flex-wrap: wrap;
+    }
+
+    .card-meta .remain {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .card-meta .remain.urgent {
+      color: var(--danger);
+    }
+
+    .btn-detail {
+      margin-top: auto;
+      display: block;
+      text-align: center;
+      text-decoration: none;
+      background: var(--accent);
+      color: #111;
+      font-weight: 700;
+      padding: 10px 14px;
+      border-radius: 4px;
+      letter-spacing: 0.06em;
+      transition: background 0.2s ease, transform 0.15s ease;
+    }
+
+    .btn-detail:hover {
+      background: #ffc233;
+      transform: scale(1.02);
+    }
+
+    .empty {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--text-muted);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+    }
+
+    .loading {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--accent);
+      letter-spacing: 0.1em;
+    }
+
+    footer {
+      text-align: center;
+      padding: 24px;
+      color: #666;
+      font-size: 0.75rem;
+      border-top: 1px solid #2a2a2a;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1>PUBG 最新活动与情报</h1>
+    <div class="header-deco" aria-hidden="true"></div>
+    <p class="subtitle">仅展示最近 30 天内的内容 · 活动与资讯分栏查看</p>
+  </header>
+
+  <!-- 加载失败或使用兜底数据时的提示 -->
+  <div id="status" class="status" role="status"></div>
+
+  <!-- 分类切换 -->
+  <div id="tabsWrap" class="tabs-wrap">
+    <div class="tabs" role="tablist" aria-label="内容分类">
+      <button type="button" class="tab active" data-kind="event" role="tab" aria-selected="true">
+        活动<span class="count" id="countEvent">(0)</span>
+      </button>
+      <button type="button" class="tab" data-kind="news" role="tab" aria-selected="false">
+        资讯<span class="count" id="countNews">(0)</span>
+      </button>
+      <button type="button" class="tab" data-kind="all" role="tab" aria-selected="false">
+        全部<span class="count" id="countAll">(0)</span>
+      </button>
+    </div>
+  </div>
+
+  <main>
+    <div id="loading" class="loading">正在拉取官方情报…</div>
+    <div id="grid" class="grid" hidden></div>
+  </main>
+
+  <footer>PUBG 活动聚合导航 · 数据来源公开 JSON · 单文件本地可用</footer>
+
+  <script>
+    /**
+     * ============================================================
+     * PUBG 官方活动聚合导航 — 核心逻辑
+     * ============================================================
+     */
+
+    /**
+     * 数据源镜像列表（按优先级依次尝试）
+     * 说明：国内直连 cdn.jsdelivr.net 经常超时；
+     *       fastly / jsdmirror 通常更稳。
+     */
+    const DATA_URLS = [
+      "https://fastly.jsdelivr.net/gh/yutangbb/pubg-news@main/news_zh-cn.json",
+      "https://cdn.jsdmirror.com/gh/yutangbb/pubg-news@main/news_zh-cn.json",
+      "https://gcore.jsdelivr.net/gh/yutangbb/pubg-news@main/news_zh-cn.json",
+      "https://cdn.jsdelivr.net/gh/yutangbb/pubg-news@main/news_zh-cn.json",
+    ];
+
+    /** 自动下架窗口：仅保留最近 N 天 */
+    const RETENTION_DAYS = 30;
+
+    /** 一天的毫秒数，便于日期差值计算 */
+    const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+    /** 当前选中的分类：event | news | all（默认先看活动） */
+    let currentKind = "event";
+
+    /** 缓存最近 30 天内的全部条目，供切换标签时筛选 */
+    let cachedItems = [];
+
+    /**
+     * CORS / 请求失败时的模拟数据（含活动 + 资讯，便于验证分类）
+     */
+    const FALLBACK_DATA = [
+      {
+        title: "【模拟】新赛季通行证上线 — 生存者集结",
+        url: "https://www.pubg.com/",
+        publish_time: daysAgoISO(2),
+        image: "",
+        category: "notice",
+      },
+      {
+        title: "【模拟】周末双倍 BP 活动开启，冲分不等人",
+        url: "https://www.pubg.com/",
+        date: daysAgoISO(5),
+        pic: "",
+        category: "notice",
+      },
+      {
+        title: "【模拟】地图轮换更新：艾伦格回归战场",
+        link: "https://www.pubg.com/",
+        publishTime: daysAgoISO(10),
+        img: "",
+        category: "notice",
+      },
+    ];
+
+    /**
+     * 活动关键词：联动 / 商店 / 通行证 / 赛事等偏「可参与」内容
+     * 数据源本身没有独立 event 分类，只能靠标题 + category 启发式划分
+     */
+    const EVENT_KEYWORDS = [
+      "活动", "联动", "联名", "合作", "通行证", "双倍", "bp",
+      "赛事", "比赛", "锦标赛", "商店", "商城", "皮肤", "抽奖",
+      "福利", "限时", "折扣", "促销", "兑换", "登场",
+      "collab", "event", " x ", "×", "ｘ",
+    ];
+
+    /** 明确偏资讯的关键词（命中则优先归为资讯） */
+    const NEWS_KEYWORDS = [
+      "地图轮换", "轮换公告", "版本更新", "更新公告", "补丁",
+      "开发者日志", "开发者", "违规", "账号公示", "维护",
+      "停机", "已知问题", "bug", "修复",
+    ];
+
+    /* -------------------- 工具函数 -------------------- */
+
+    /** 生成「N 天前」的 ISO 日期字符串（仅用于兜底假数据） */
+    function daysAgoISO(n) {
+      const d = new Date();
+      d.setHours(12, 0, 0, 0);
+      d.setDate(d.getDate() - n);
+      return d.toISOString().slice(0, 10); // YYYY-MM-DD
+    }
+
+    /**
+     * 兼容多种日期格式，统一解析为 Date 对象
+     * 支持：时间戳、YYYY-MM-DD、YYYY/MM/DD、带时分秒的字符串等
+     * @returns {Date|null} 无效则返回 null
+     */
+    function parseDate(raw) {
+      if (raw == null || raw === "") return null;
+
+      // 纯数字：秒级或毫秒级时间戳
+      if (typeof raw === "number" || /^\d+$/.test(String(raw).trim())) {
+        let n = Number(raw);
+        // 小于 1e12 视为秒，转为毫秒
+        if (n < 1e12) n *= 1000;
+        const d = new Date(n);
+        return isNaN(d.getTime()) ? null : d;
+      }
+
+      const str = String(raw).trim();
+
+      // 常见写法：2024-01-15 / 2024/01/15 / 2024.01.15
+      const m = str.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+      if (m) {
+        const y = Number(m[1]);
+        const mo = Number(m[2]) - 1;
+        const day = Number(m[3]);
+        // 使用本地正午，避免时区导致「差一天」的边界问题
+        const d = new Date(y, mo, day, 12, 0, 0, 0);
+        return isNaN(d.getTime()) ? null : d;
+      }
+
+      const d = new Date(str);
+      return isNaN(d.getTime()) ? null : d;
+    }
+
+    /**
+     * 将条目归类为 event（活动）或 news（资讯）
+     * - patch_notes / dev_notes → 一律资讯
+     * - 标题命中资讯关键词 → 资讯
+     * - 标题命中活动关键词 → 活动
+     * - 其余默认资讯（地图轮换、常规公告等）
+     */
+    function classifyKind(title, category) {
+      const cat = String(category || "").toLowerCase();
+      if (cat === "patch_notes" || cat === "dev_notes" || cat === "patch" || cat === "dev") {
+        return "news";
+      }
+
+      const text = String(title || "").toLowerCase();
+
+      // 「PUBG x 品牌」联动写法
+      if (/\bx\b/i.test(title) || title.includes("×") || title.includes("ｘ")) {
+        return "event";
+      }
+
+      if (NEWS_KEYWORDS.some((kw) => text.includes(kw.toLowerCase()))) {
+        return "news";
+      }
+      if (EVENT_KEYWORDS.some((kw) => text.includes(kw.toLowerCase()))) {
+        return "event";
+      }
+      return "news";
+    }
+
+    /**
+     * 字段兼容映射：不同 JSON 可能用不同字段名
+     * title / url / 时间 / 配图 / category
+     */
+    function normalizeItem(item) {
+      if (!item || typeof item !== "object") return null;
+
+      const title =
+        item.title || item.name || item.headline || item.subject || "";
+
+      // 实际数据源字段：newsUrl；同时兼容 url / link 等
+      const url =
+        item.newsUrl ||
+        item.url ||
+        item.link ||
+        item.href ||
+        item.detail_url ||
+        item.detailUrl ||
+        "#";
+
+      // 实际数据源字段：displayTime / createdAt
+      const publishRaw =
+        item.displayTime ??
+        item.publish_time ??
+        item.publishTime ??
+        item.published_at ??
+        item.publishedAt ??
+        item.date ??
+        item.time ??
+        item.created_at ??
+        item.createdAt ??
+        item.release_date ??
+        null;
+
+      // 实际数据源字段：imageUrl / thumbUrl
+      const image =
+        item.imageUrl ||
+        item.thumbUrl ||
+        item.image ||
+        item.pic ||
+        item.img ||
+        item.cover ||
+        item.thumbnail ||
+        item.thumb ||
+        item.banner ||
+        "";
+
+      const category = item.category || item.type || item.tag || "";
+      const publishDate = parseDate(publishRaw);
+      if (!title || !publishDate) return null;
+
+      const kind = classifyKind(title, category);
+
+      return {
+        title: String(title),
+        url: String(url),
+        publishDate,
+        image: String(image || ""),
+        category: String(category),
+        kind, // "event" | "news"
+      };
+    }
+
+    /**
+     * 核心过滤：只保留「发布时间」落在最近 RETENTION_DAYS 天内的条目
+     *
+     * 判定逻辑：
+     *   now - publishDate <= RETENTION_DAYS * 一天毫秒
+     * 即：发布时间不早于 (当前时间 - 30 天)
+     */
+    function filterRecent(items) {
+      const now = Date.now();
+      const cutoff = now - RETENTION_DAYS * MS_PER_DAY;
+
+      return items.filter((item) => {
+        const t = item.publishDate.getTime();
+        return t >= cutoff && t <= now + MS_PER_DAY; // 允许轻微未来时间误差
+      });
+    }
+
+    /**
+     * 剩余天数 = floor( (发布日 + 30天 - 现在) / 一天 )
+     * 即还有多少天会因「超过 30 天」被自动下架
+     */
+    function calcRemainDays(publishDate) {
+      const expireAt = publishDate.getTime() + RETENTION_DAYS * MS_PER_DAY;
+      const remainMs = expireAt - Date.now();
+      return Math.max(0, Math.ceil(remainMs / MS_PER_DAY));
+    }
+
+    /** 格式化为 YYYY-MM-DD 展示 */
+    function formatDate(d) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    }
+
+    /* -------------------- 渲染 -------------------- */
+
+    function showStatus(message, isWarn) {
+      const el = document.getElementById("status");
+      el.textContent = message;
+      el.classList.add("show");
+      el.classList.toggle("warn", !!isWarn);
+    }
+
+    /** 配图失败时切换为 PUBG 风格占位 */
+    function createCover(imageUrl) {
+      const wrap = document.createElement("div");
+      wrap.className = "card-cover";
+
+      const showPlaceholder = () => {
+        wrap.innerHTML = "";
+        const ph = document.createElement("div");
+        ph.className = "placeholder";
+        ph.innerHTML = "PUBG<br/><span>NO IMAGE</span>";
+        wrap.appendChild(ph);
+      };
+
+      if (!imageUrl) {
+        showPlaceholder();
+        return wrap;
+      }
+
+      const img = document.createElement("img");
+      img.src = imageUrl;
+      img.alt = "活动配图";
+      // 防止部分站点防盗链导致图片 403
+      img.referrerPolicy = "no-referrer";
+      img.loading = "lazy";
+      img.onerror = showPlaceholder;
+      wrap.appendChild(img);
+      return wrap;
+    }
+
+    function createCard(item) {
+      const remain = calcRemainDays(item.publishDate);
+
+      const card = document.createElement("article");
+      card.className = "card";
+
+      const cover = createCover(item.image);
+      const badge = document.createElement("span");
+      badge.className = `card-badge ${item.kind === "event" ? "event" : "news"}`;
+      badge.textContent = item.kind === "event" ? "活动" : "资讯";
+      cover.appendChild(badge);
+      card.appendChild(cover);
+
+      const body = document.createElement("div");
+      body.className = "card-body";
+
+      const title = document.createElement("h2");
+      title.className = "card-title";
+      title.textContent = item.title;
+
+      const meta = document.createElement("div");
+      meta.className = "card-meta";
+      meta.innerHTML =
+        `<span>发布日期：${formatDate(item.publishDate)}</span>` +
+        `<span class="remain${remain <= 3 ? " urgent" : ""}">剩余 ${remain} 天</span>`;
+
+      const btn = document.createElement("a");
+      btn.className = "btn-detail";
+      btn.href = item.url || "#";
+      btn.target = "_blank";
+      btn.rel = "noopener noreferrer";
+      btn.textContent = "查看详情";
+
+      body.appendChild(title);
+      body.appendChild(meta);
+      body.appendChild(btn);
+      card.appendChild(body);
+      return card;
+    }
+
+    /** 按当前标签筛选列表 */
+    function filterByKind(items, kind) {
+      if (kind === "all") return items;
+      return items.filter((item) => item.kind === kind);
+    }
+
+    /** 更新标签上的数量角标 */
+    function updateTabCounts(items) {
+      const eventCount = items.filter((i) => i.kind === "event").length;
+      const newsCount = items.filter((i) => i.kind === "news").length;
+      document.getElementById("countEvent").textContent = `(${eventCount})`;
+      document.getElementById("countNews").textContent = `(${newsCount})`;
+      document.getElementById("countAll").textContent = `(${items.length})`;
+    }
+
+    function renderList(items) {
+      const loading = document.getElementById("loading");
+      const grid = document.getElementById("grid");
+      loading.hidden = true;
+      grid.hidden = false;
+      grid.innerHTML = "";
+
+      const emptyTips = {
+        event: "最近 30 天内暂无活动类内容（联动 / 商店 / 通行证等）。可切换到「资讯」查看公告与更新。",
+        news: "最近 30 天内暂无资讯类内容。",
+        all: "最近 30 天内暂无内容，请稍后再来查看。",
+      };
+
+      if (!items.length) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.textContent = emptyTips[currentKind] || emptyTips.all;
+        grid.appendChild(empty);
+        return;
+      }
+
+      // 新到旧排序
+      items
+        .slice()
+        .sort((a, b) => b.publishDate - a.publishDate)
+        .forEach((item) => grid.appendChild(createCard(item)));
+    }
+
+    /** 切换分类并重新渲染 */
+    function applyKind(kind) {
+      currentKind = kind;
+      document.querySelectorAll(".tab").forEach((btn) => {
+        const active = btn.dataset.kind === kind;
+        btn.classList.toggle("active", active);
+        btn.setAttribute("aria-selected", active ? "true" : "false");
+      });
+      renderList(filterByKind(cachedItems, kind));
+    }
+
+    function bindTabs() {
+      document.querySelectorAll(".tab").forEach((btn) => {
+        btn.addEventListener("click", () => applyKind(btn.dataset.kind));
+      });
+    }
+
+    /**
+     * 将原始数组 → 规范化 → 30 天过滤
+     */
+    function processRawList(raw) {
+      const list = Array.isArray(raw) ? raw : raw?.list || raw?.data || raw?.news || [];
+      const normalized = list.map(normalizeItem).filter(Boolean);
+      return filterRecent(normalized);
+    }
+
+    /* -------------------- 入口：拉取数据 + 兜底 -------------------- */
+
+    /**
+     * 依次请求镜像，任一成功即返回 JSON；全部失败则抛出错误
+     */
+    async function fetchNewsJson() {
+      const errors = [];
+      for (const url of DATA_URLS) {
+        try {
+          const res = await fetch(url, { cache: "no-store" });
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+          }
+          const data = await res.json();
+          return { data, source: url };
+        } catch (err) {
+          errors.push(`${url} → ${err.message || err}`);
+          console.warn("镜像失败，尝试下一个：", url, err);
+        }
+      }
+      throw new Error(errors.join(" | "));
+    }
+
+    async function init() {
+      const isFileProtocol = location.protocol === "file:";
+      bindTabs();
+
+      try {
+        const { data, source } = await fetchNewsJson();
+        cachedItems = processRawList(data);
+        document.getElementById("tabsWrap").classList.add("show");
+        updateTabCounts(cachedItems);
+
+        const eventN = cachedItems.filter((i) => i.kind === "event").length;
+        const newsN = cachedItems.filter((i) => i.kind === "news").length;
+        showStatus(
+          `已加载官方数据（${source.includes("fastly") ? "fastly" : "镜像"}）：活动 ${eventN} 条 · 资讯 ${newsN} 条（近 ${RETENTION_DAYS} 天）。`
+        );
+
+        // 默认打开「活动」；若活动为空则自动切到「资讯」，避免空白页
+        applyKind(eventN > 0 ? "event" : "news");
+      } catch (err) {
+        // 网络不通 / 全部镜像失败 / 极少情况下的 CORS → 兜底假数据
+        console.warn("数据加载失败，启用兜底数据：", err);
+        const tip = isFileProtocol
+          ? "无法加载在线数据。若刷新后仍失败，请用本地 HTTP 服务打开（不要双击 file://），或检查网络/代理。"
+          : "无法从在线地址加载数据（CDN 超时或网络不可用）。已切换为模拟数据。";
+        showStatus(tip + " 页面仍可正常浏览。", true);
+        cachedItems = processRawList(FALLBACK_DATA);
+        document.getElementById("tabsWrap").classList.add("show");
+        updateTabCounts(cachedItems);
+        applyKind("event");
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
